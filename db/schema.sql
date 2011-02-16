@@ -23,7 +23,7 @@ CREATE TABLE access_log (
 	local_port integer,				-- %{local}p
 	remote_port integer,			-- %{remote}p
 	pid integer,					-- %{pid}P
-	tid integer,					-- %{tid}P
+	tid varchar,					-- %{hextid}P
 	first_ine varchar,				-- %r
 	handler varchar,				-- %R
 	status_first smallint,			-- %s
@@ -36,4 +36,5 @@ CREATE TABLE access_log (
 	PRIMARY KEY(local_ip,id)
 );
 GRANT INSERT ON access_log TO webservers;
+GRANT ALL ON access_log_id_seq TO webservers;
 
