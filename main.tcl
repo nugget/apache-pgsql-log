@@ -3,6 +3,8 @@
 set ::app_branch	"dev"
 set ::app_timestamp	[clock seconds]
 
+set ::debug 0
+
 foreach tclf {version.tcl config.tcl} {
 	if {[file exists $tclf]} {
 		set fillfn $tclf
@@ -17,6 +19,10 @@ foreach tclf {version.tcl config.tcl} {
 }
 package require Pgtcl
 package require Syslog
+
+proc debug {buf} {
+	syslog -ident appglog -facility daemon debug $buf
+}
 
 proc logmsg {buf} {
 	syslog -ident appglog -facility daemon notice $buf
@@ -35,7 +41,7 @@ proc db_connect {} {
 proc do_sql {sql} {
     set sqlstart [clock seconds]
 
-    logmsg "Executed: $sql"
+	debug "Executed: $sql"
 
     set res [pg_exec $::db "$sql"]
     if {[pg_result $res -numTuples] > 0} {
@@ -73,12 +79,8 @@ proc main {} {
 	}
 
 	while {1} {
-		logmsg "Loop"
 		set buf [gets stdin]
-		logmsg "buf $buf"
-
 		set buflist [split $buf "\t"]
-		logmsg "buflist $buflist"
 
 		if {[catch {array set bufarray $buflist} err]} {
 			logerr "$err"
@@ -86,10 +88,7 @@ proc main {} {
 			set fields [array names bufarray]
 			set values [list]
 
-			logmsg "ts1 $bufarray(ts)"
 			set bufarray(ts) [clock format $bufarray(ts) -format "%Y-%m-%d %T" -gmt 1]
-			logmsg "ts2 $bufarray(ts)"
-
 
 			foreach f $fields {
 				lappend values [pg_quote $bufarray($f)]
