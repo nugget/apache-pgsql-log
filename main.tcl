@@ -6,12 +6,13 @@ set ::app_timestamp	[clock seconds]
 set ::debug 0
 
 foreach tclf {version.tcl config.tcl} {
+	unset -nocomplain fullfn
 	if {[file exists $tclf]} {
-		set fillfn $tclf
+		set fullfn $tclf
 	} else {
 		set fullfn "[regsub {[^/]+$} [info script] ""]$tclf"
 	}
-	if {[catch "source $fullfn" error] && $tclf != "version.tcl"} {
+	if {[info exists fullfn] && [catch "source $fullfn" error] && $tclf != "version.tcl"} {
 		puts stderr "Unable to locate $tclf"
 		puts stderr $error
 		exit -1
@@ -67,8 +68,8 @@ proc do_sql {sql} {
     return [list $result $status $error]
 }
 
-proc main {} {
-	set entrance "Starting apache_pg_log ($::app_branch) built [clock format $::app_timestamp -format "%Y-%m-%d @ %H:%M"] on [info hostname]"
+proc receiver {} {
+	set entrance "Starting apache_pg_log ($::app_branch) reciever built [clock format $::app_timestamp -format "%Y-%m-%d @ %H:%M"] on [info hostname]"
 	logmsg $entrance
 	db_connect
 
@@ -94,10 +95,23 @@ proc main {} {
 				lappend values [pg_quote $bufarray($f)]
 			}
 
-			set sql "INSERT INTO access_log ([join $fields ","]) VALUES ([join $values ","]);"
-			do_sql $sql
+			set sql    "INSERT INTO access_log ([join $fields ","]) VALUES ([join $values ","]); "
+			append sql "NOTIFY logactivity; "
+
+			logerr [do_sql $sql]
 		}
 	}
 }
 
-if !$tcl_interactive main
+
+proc main {argv} {
+	if {![info exists argv] || $argv =="" || $argv == "receiver"} {
+		receiver
+	}
+
+}
+
+
+if !$tcl_interactive {
+	main $argv
+}
