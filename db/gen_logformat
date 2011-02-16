@@ -1,0 +1,24 @@
+#!/usr/local/bin/tclsh8.5
+
+proc main {} {
+	if {[catch {set fh [open "schema.sql" "r"]} err]} {
+		puts "Cannot open schema: $err"
+	} else {
+		while {1} {
+			set buf [gets $fh]
+			if {[regexp {\s+(\S+).*-- (%.*)} $buf _ field format]} {
+				lappend item_list $field
+				lappend item_list $format
+			}
+			if {[eof $fh]} {
+				break
+			}
+		}
+		close $fh
+
+		set LogFormat "LogFormat \"[join $item_list "\\t"]\" appglog"
+		puts $LogFormat
+	}
+}
+
+if !$tcl_interactive main
