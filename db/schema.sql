@@ -24,7 +24,7 @@ CREATE TABLE access_log (
 	remote_port integer,			-- %{remote}p
 	pid integer,					-- %{pid}P
 	tid varchar,					-- %{hextid}P
-	first_ine varchar,				-- %r
+	first_line varchar,				-- %r
 	handler varchar,				-- %R
 	status_first smallint,			-- %s
 	status_last	smallint,			-- %>s
@@ -37,4 +37,3 @@ CREATE TABLE access_log (
 );
 GRANT INSERT ON access_log TO webservers;
 GRANT ALL ON access_log_id_seq TO webservers;
-
