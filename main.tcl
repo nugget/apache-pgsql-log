@@ -18,8 +18,10 @@ foreach tclf {version.tcl config.tcl} {
 		exit -1
 	}
 }
+
 package require Pgtcl
 package require Syslog
+package require Tclx
 
 proc debug {buf} {
 	syslog -ident appglog -facility daemon debug $buf
@@ -103,12 +105,65 @@ proc receiver {} {
 	}
 }
 
+proc bail {} {
+	puts "User exit detected"
+	pg_disconnect $::db
+	puts "Disconnected from database"
+	exit
+}
+
+proc tail_log {regexp} {
+	set entrance "Starting apache_pg_log ($::app_branch) tail_log built [clock format $::app_timestamp -format "%Y-%m-%d @ %H:%M"] on [info hostname]"
+	puts $entrance
+	db_connect
+
+	pg_select $::db "SELECT max(id) as id, max(length(server_name)) as m_server_name FROM access_log" buf {
+		set ::last_id $buf(id)
+		foreach lf {server_name} {
+			set ::max($lf) $buf(m_$lf)
+		}
+		pg_listen $::db logactivity new_logs
+	}
+
+	signal trap SIGINT bail
+	vwait die
+}
+
+proc new_logs {} {
+	pg_select $::db "SELECT * FROM access_log WHERE id > $::last_id ORDER BY id" buf {
+		# Combined
+		#puts "$buf(remote_host) $buf(remote_logname) $buf(remote_user) \[$buf(ts)\] \"$buf(request_uri)\" $buf(status_last) $buf(content_bytes) \"$buf(referer)\" \"$buf(user_agent)\""
+		#
+		set outbuf ""
+		append outbuf "$buf(ts) "
+
+		append outbuf "[format "%$::max(server_name)s" $buf(server_name)] "
+
+		switch $buf(local_port) {
+			     80 { append outbuf "http  " }
+			    443 { append outbuf "https " }
+			default { append outbuf "  ?   " }
+		}
+		append outbuf " [format "%3d" $buf(status_last)] "
+
+		append outbuf "[format "%5d" [expr $buf(content_bytes) / 1024]]kB "
+
+		append outbuf "$buf(remote_host) $buf(remote_logname) $buf(remote_user) \"$buf(request_uri)\" \"$buf(referer)\" \"$buf(user_agent)\""
+
+		puts $outbuf
+		set ::last_id $buf(id)
+	}
+}
+
 
 proc main {argv} {
 	if {![info exists argv] || $argv =="" || $argv == "receiver"} {
 		receiver
+	} else {
+		if {[regexp {^tail} $argv]} {
+			tail_log ".*"
+		}
 	}
-
 }
 
 
