@@ -1,0 +1,8 @@
+array set ::dbconfig {
+	dbname			weblogs
+	host			localhost
+	port			5432
+	user			apache
+	password		password
+	connect_timeout	5
+}
