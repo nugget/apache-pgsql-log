@@ -100,7 +100,7 @@ proc receiver {} {
 			set sql    "INSERT INTO access_log ([join $fields ","]) VALUES ([join $values ","]); "
 			append sql "NOTIFY logactivity; "
 
-			logerr [do_sql $sql]
+			do_sql $sql
 		}
 	}
 }
