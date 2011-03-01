@@ -140,7 +140,8 @@ proc new_logs {} {
 		append outbuf "[format "%$::max(server_name)s" $buf(server_name)] "
 
 		switch $buf(local_port) {
-			     80 { append outbuf "http  " }
+			     80 -
+			   8080 { append outbuf "http  " }
 			    443 { append outbuf "https " }
 			default { append outbuf "  ?   " }
 		}
