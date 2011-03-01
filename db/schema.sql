@@ -35,5 +35,5 @@ CREATE TABLE access_log (
 	user_agent varchar,				-- %{User-Agent}i
 	PRIMARY KEY(local_ip,id)
 );
-GRANT INSERT ON access_log TO webservers;
+GRANT SELECT,INSERT ON access_log TO webservers;
 GRANT ALL ON access_log_id_seq TO webservers;
