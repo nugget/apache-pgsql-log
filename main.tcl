@@ -114,7 +114,7 @@ proc bail {} {
 
 proc tail_log {regexp} {
 	set entrance "Starting apache_pg_log ($::app_branch) tail_log built [clock format $::app_timestamp -format "%Y-%m-%d @ %H:%M"] on [info hostname]"
-	puts $entrance
+	#puts $entrance
 	db_connect
 
 	pg_select $::db "SELECT max(id) as id, max(length(server_name)) as m_server_name FROM access_log" buf {
@@ -131,25 +131,31 @@ proc tail_log {regexp} {
 
 proc new_logs {} {
 	pg_select $::db "SELECT * FROM access_log WHERE id > $::last_id ORDER BY id" buf {
-		# Combined
-		#puts "$buf(remote_host) $buf(remote_logname) $buf(remote_user) \[$buf(ts)\] \"$buf(request_uri)\" $buf(status_last) $buf(content_bytes) \"$buf(referer)\" \"$buf(user_agent)\""
-		#
 		set outbuf ""
-		append outbuf "$buf(ts) "
 
-		append outbuf "[format "%$::max(server_name)s" $buf(server_name)] "
+		set ncsa_ts		"\[[clock format [clock scan "$buf(ts)-00" -gmt 1] -format "%d/%b/%Y:%H:%M:%S +0000" -gmt 1]\]"
 
-		switch $buf(local_port) {
-			     80 -
-			   8080 { append outbuf "http  " }
-			    443 { append outbuf "https " }
-			default { append outbuf "  ?   " }
+		if {[info exists ::logformat] && $::logformat == "combined"} {
+			append outbuf "$buf(remote_host) $buf(remote_logname) $buf(remote_user) $ncsa_ts \"$buf(first_line)\" $buf(status_last) $buf(content_bytes) \"$buf(referer)\" \"$buf(user_agent)\""
+		} elseif {[info exists ::logformat] && $::logformat == "extended"} {
+			append outbuf "$buf(server_name) $buf(remote_host) $buf(remote_logname) $buf(remote_user) $ncsa_ts \"$buf(first_line)\" $buf(status_last) $buf(content_bytes) \"$buf(referer)\" \"$buf(user_agent)\""
+		} else {
+			append outbuf "$buf(ts) "
+
+			append outbuf "[format "%$::max(server_name)s" $buf(server_name)] "
+
+			switch $buf(local_port) {
+				     80 -
+				   8080 { append outbuf "http  " }
+				    443 { append outbuf "https " }
+				default { append outbuf "  ?   " }
+			}
+			append outbuf " [format "%3d" $buf(status_last)] "
+
+			append outbuf "[format "%5d" [expr $buf(content_bytes) / 1024]]kB "
+
+			append outbuf "$buf(remote_host) $buf(remote_logname) $buf(remote_user) \"$buf(request_uri)\" \"$buf(referer)\" \"$buf(user_agent)\""
 		}
-		append outbuf " [format "%3d" $buf(status_last)] "
-
-		append outbuf "[format "%5d" [expr $buf(content_bytes) / 1024]]kB "
-
-		append outbuf "$buf(remote_host) $buf(remote_logname) $buf(remote_user) \"$buf(request_uri)\" \"$buf(referer)\" \"$buf(user_agent)\""
 
 		puts $outbuf
 		set ::last_id $buf(id)
@@ -162,6 +168,12 @@ proc main {argv} {
 		receiver
 	} else {
 		if {[regexp {^tail} $argv]} {
+			tail_log ".*"
+		} elseif {[regexp {^combined} $argv]} {
+			set ::logformat "combined"
+			tail_log ".*"
+		} elseif {[regexp {^extended} $argv]} {
+			set ::logformat "extended"
 			tail_log ".*"
 		}
 	}
